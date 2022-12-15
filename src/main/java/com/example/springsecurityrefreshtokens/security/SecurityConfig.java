@@ -1,6 +1,7 @@
 package com.example.springsecurityrefreshtokens.security;
 
 import com.example.springsecurityrefreshtokens.filter.CustomAuthenticationFilter;
+import com.example.springsecurityrefreshtokens.filter.CustomAuthorizationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +13,7 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -28,14 +30,19 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
+        CustomAuthenticationFilter customAuthenticationFilter = new CustomAuthenticationFilter(authenticationManagerBean());
+        customAuthenticationFilter.setFilterProcessesUrl("/api/login");
         http
                 .csrf().disable()
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and()
-                .addFilter(new CustomAuthenticationFilter(authenticationManagerBean()))
+                .addFilter(customAuthenticationFilter)
+                .addFilterBefore(new CustomAuthorizationFilter(), UsernamePasswordAuthenticationFilter.class)
                 .authorizeRequests()
-                .antMatchers("/", "/login").permitAll()
+                .antMatchers("/", "/api/login", "/api/token/refresh/**").permitAll()
+                .antMatchers("/api/user/save/**").hasAnyAuthority("ROLE_ADMIN")
+                .antMatchers("/api/user/**").hasAnyAuthority("ROLE_USER")
                 .anyRequest()
                 .authenticated();
     }
